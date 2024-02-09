@@ -42,6 +42,7 @@ services:
     networks:
       - dev-stack-network
 
+#=======================================================================================================================
   schema-registry:
     image: confluentinc/cp-schema-registry:latest
     hostname: schema-registry
@@ -49,6 +50,7 @@ services:
       - kafka-broker-1
       - kafka-broker-2
       - kafka-broker-3
+
     ports:
       - "8088:8080"
     environment:
@@ -116,6 +118,138 @@ services:
     networks:
       - dev-stack-network
 
+#=======================================================================================================================
+  elasticsearch-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    environment:
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - node.name=elasticsearch-1
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=elasticsearch-2,elasticsearch-3
+      - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2,elasticsearch-3
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms4096m -Xmx4096m"
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    networks:
+      - dev-stack-network
+
+  elasticsearch-2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    environment:
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - node.name=elasticsearch-2
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=elasticsearch-1,elasticsearch-3
+      - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2,elasticsearch-3
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms4096m -Xmx4096m"
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - dev-stack-network
+
+  elasticsearch-3:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    environment:
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - node.name=elasticsearch-3
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=elasticsearch-1,elasticsearch-2
+      - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2,elasticsearch-3
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms4096m -Xmx4096m"
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - dev-stack-network
+
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.elasticsearch-3.rule=Host(`yourdomain.com`) && PathPrefix(`/es`)"
+#      - "traefik.http.services.elasticsearch-3.loadbalancer.server.port=9200"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.1
+    environment:
+      - 'ELASTICSEARCH_HOSTS=["http://elasticsearch-1:9200","http://elasticsearch-2:9200","http://elasticsearch-3:9200"]'
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - elasticsearch.ssl.verificationMode=none
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch-1
+      - elasticsearch-2
+      - elasticsearch-3
+    networks:
+      - dev-stack-network
+#=======================================================================================================================
+#  traefik:
+#    build:
+#      context: .
+#      dockerfile_inline: |
+#        FROM traefik:latest
+#        RUN cat <<EOF > /traefik.yml
+#        # Traefik log 설정
+#        log:
+#          level: WARN
+#          format: common
+#
+#        accessLog:
+#          bufferingSize: 1000
+#          format: common
+#          fields:
+#            headers:
+#              names:
+#                User-Agent: keep
+#                Host: keep
+#
+#        api:
+#          insecure: true
+#          dashboard: true
+#
+#        providers:
+#          docker:
+#            exposedByDefault: false
+#
+#        entryPoints:
+#          http:
+#            address: ":80"
+#        EOF
+#    command:
+#      - "--configFile=/traefik.yml"
+#    networks:
+#      - dev-stack-network
+#    ports:
+#      - "80:80"
+#      - "8080:8080"
+
+#=======================================================================================================================
+#=======================================================================================================================
 networks:
   dev-stack-network:
     ipam:
