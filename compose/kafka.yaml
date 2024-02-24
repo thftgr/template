@@ -9,8 +9,8 @@ services:
       ZOOKEEPER_INIT_LIMIT: 5
       ZOOKEEPER_SYNC_LIMIT: 2
       ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
-    ports:
-      - "22181:2181"
+#    ports:
+#      - "22181:2181"
     networks:
       - dev-stack-network
 
@@ -23,8 +23,8 @@ services:
       ZOOKEEPER_INIT_LIMIT: 5
       ZOOKEEPER_SYNC_LIMIT: 2
       ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
-    ports:
-      - "32181:2181"
+#    ports:
+#      - "32181:2181"
     networks:
       - dev-stack-network
 
@@ -37,11 +37,12 @@ services:
       ZOOKEEPER_INIT_LIMIT: 5
       ZOOKEEPER_SYNC_LIMIT: 2
       ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
-    ports:
-      - "42181:2181"
+#    ports:
+#      - "42181:2181"
     networks:
       - dev-stack-network
 
+  #=======================================================================================================================
   schema-registry:
     image: confluentinc/cp-schema-registry:latest
     hostname: schema-registry
@@ -49,6 +50,7 @@ services:
       - kafka-broker-1
       - kafka-broker-2
       - kafka-broker-3
+
     ports:
       - "8088:8080"
     environment:
@@ -116,6 +118,7 @@ services:
     networks:
       - dev-stack-network
 
+#=======================================================================================================================
 networks:
   dev-stack-network:
     ipam:
