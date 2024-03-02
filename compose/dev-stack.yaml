@@ -1,0 +1,277 @@
+# ports
+#   zookeeper: 2181:[2181,2181,2181]
+#   kafka-broker: 29092:[29092,29092,29092]
+#   schema-registry: 8080:?
+#   kafka-ui: 8080:?
+#   opensearch-node: 9200,9600:[[9200,9600],[9200,9600],[9200,9600]]
+#   opensearch-dashboards: 5601:
+#
+version: '3.8'
+services:
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
+    ports:
+      - "22181:2181"
+    networks:
+      - dev-stack-network
+
+  zookeeper-2:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 2
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
+    ports:
+      - "32181:2181"
+    networks:
+      - dev-stack-network
+
+  zookeeper-3:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 3
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zookeeper-1:28881:38881;zookeeper-2:28882:38882;zookeeper-3:28883:38883
+    ports:
+      - "42181:2181"
+    networks:
+      - dev-stack-network
+
+  #=======================================================================================================================
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-broker-1:9092,EXTERNAL://192.168.0.50:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 3
+    networks:
+      - dev-stack-network
+
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "39092:39092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-broker-2:9092,EXTERNAL://192.168.0.50:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 3
+    networks:
+      - dev-stack-network
+
+  kafka-broker-3:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+    ports:
+      - "49092:49092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-broker-3:9092,EXTERNAL://192.168.0.50:49092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 3
+    networks:
+      - dev-stack-network
+#=======================================================================================================================
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    hostname: schema-registry
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8080
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-broker-1:9092,PLAINTEXT://kafka-broker-2:9092,PLAINTEXT://kafka-broker-3:9092
+      SCHEMA_REGISTRY_DEBUG: 'true'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.schema-registry.rule=Host(`schema-registry.local`)"
+      - "traefik.http.routers.schema-registry.entrypoints=web"
+      - "traefik.http.services.schema-registry.loadbalancer.server.port=8080"
+    networks:
+      - dev-stack-network
+#=======================================================================================================================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+      - zookeeper-3
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+    networks:
+      - dev-stack-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kafka-ui.rule=Host(`kafka-ui.local`)"
+      - "traefik.http.routers.kafka-ui.entrypoints=web"
+      - "traefik.http.services.kafka-ui.loadbalancer.server.port=8080"
+
+#=======================================================================================================================
+  opensearch-node1:
+    image: opensearchproject/opensearch:latest
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - bootstrap.system_call_filter=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms4096m -Xmx4096m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+    ports:
+      - "9600:9600" # Performance Analyzer
+#    volumes:
+#      - opensearch-data1:/usr/share/opensearch/data
+    networks:
+      - dev-stack-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.opensearch-node.rule=Host(`opensearch-node.local`)"
+      - "traefik.http.routers.opensearch-node.entrypoints=web"
+      - "traefik.http.services.opensearch-node.loadbalancer.server.port=9200"
+
+  opensearch-node2:
+    image: opensearchproject/opensearch:latest
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node2
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - bootstrap.system_call_filter=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms4096m -Xmx4096m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+#    volumes:
+#      - opensearch-data2:/usr/share/opensearch/data
+    networks:
+      - dev-stack-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.opensearch-node.rule=Host(`opensearch-node.local`)"
+      - "traefik.http.routers.opensearch-node.entrypoints=web"
+      - "traefik.http.services.opensearch-node.loadbalancer.server.port=9200"
+
+  opensearch-node3:
+    image: opensearchproject/opensearch:latest
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node3
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2,opensearch-node3
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2,opensearch-node3
+      - bootstrap.memory_lock=true
+      - bootstrap.system_call_filter=false
+      - "OPENSEARCH_JAVA_OPTS=-Xms4096m -Xmx4096m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+#    volumes:
+#      - opensearch-data2:/usr/share/opensearch/data
+    networks:
+      - dev-stack-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.opensearch-node.rule=Host(`opensearch-node.local`)"
+      - "traefik.http.routers.opensearch-node.entrypoints=web"
+      - "traefik.http.services.opensearch-node.loadbalancer.server.port=9200"
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch-node1:9200","http://opensearch-node2:9200","http://opensearch-node3:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
+
+    networks:
+      - dev-stack-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.opensearch-dashboards.rule=Host(`opensearch-dashboards.local`)"
+      - "traefik.http.routers.opensearch-dashboards.entrypoints=web"
+      - "traefik.http.services.opensearch-dashboards.loadbalancer.server.port=5601"
+
+  #=======================================================================================================================
+  traefik:
+    image: traefik:latest
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true" # 대시보드와 API를 활성화하고, 비보안(인증 없음)으로 설정
+      - "--providers.docker=true" # Docker 프로바이더 활성화
+      - "--providers.docker.exposedbydefault=false" # 모든 컨테이너를 기본적으로 노출하지 않음
+      - "--entrypoints.web.address=:80" # HTTP 엔트리포인트 설정
+    networks:
+      - dev-stack-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8090:8080
+      - 8091:80
+#=======================================================================================================================
+networks:
+  dev-stack-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+          ip_range: 10.2.0.0/24
+          gateway: 10.2.0.1
